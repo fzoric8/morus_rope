@@ -1,0 +1,857 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="myrobot">
+
+	<xacro:property name="width" value="0.02"/>		    <!-- [m] -->
+	<xacro:property name="width_1" value="0.01"/>		<!-- [m] -->
+	<xacro:property name="body_len" value="0.2"/>     	<!-- [m] -->
+	<xacro:property name="box_param" value="0.5"/>  
+	<xacro:property name="box_param1" value="0.25"/>
+	<xacro:property name="spawn_point" value="3"/>      <!-- [m] -->
+	<xacro:property name="radius" value="0.1"/>         <!-- [m] -->
+	<xacro:property name="small" value="0.005"/>  		<!-- [m] -->
+	<xacro:property name="load_mass" value="50"/> 		<!-- [kg] -->
+	<xacro:property name="friction" value="0.05"/>         <!-- trenje zgloba -->
+	<xacro:property name="damping1"  value="0.2"/>        <!-- prigušenje zgloba -->
+	<xacro:property name="effort_joint" value="1000"/>
+	<xacro:property name="large" value="100"/>
+	<xacro:property name="inertia_rope" value="0.1"/>
+	<xacro:property name="mass_rope" value="0.1"/>
+	<xacro:property name="mass_link" value="0.01"/>  <!-- masa imaginarnog  clanka [kg] -->
+	<xacro:property name="inertia_link" value="0.1"/> <!-- inercija imaginarnog clanka -->
+	<xacro:property name="velocity_joint" value="300"/>	
+
+		<!-- small - inertia of imaginary links that were needed to create ball joint - undefined value
+				smaller value - acts as a spring,  bigger value- to stiff -->
+		<!-- friction, damping, values that affect the joint, too big damping is absorbs too much kinetic energy while to small damping 
+		results as... I must determine middle value and than tweak every parametar and observe what happes with the system -->
+
+		<!-- MACRO ARGUMETS EXPLANATION-->		
+		<!-- width - 2*width is the width of the first rigid link (base of the rope, hook) -->
+		<!-- width_1 - 2*width_1 is the width of the every other rigif link (series of connected rigid links with ball joints represents a rope-->
+		<!-- body_len - length of the link (cylinder with radius = width_1 and length=body_len-->
+		<!-- box param - length of the edge of the box that represents base link to which rope is attached-->
+		<!-- spawn_point = z value in relation to the origin of the world for base link-->
+		<!-- radius = radius of the load that is represented as a sphere-->
+		<!-- small = very small value that is needed for inertia element of every infintensimaly small link -->
+		<!-- load_mass = mass of the load that is carried by rope-->
+		<!-- rope_mass = mass of the links that create rope, in order to generate inertia (1/12*mass*height)+1/4*mass*radius^2)-->
+		
+		<!-- REFERENCE FRAME/CHILD/PARENT http://wiki.ros.org/urdf/XML/joint/-->
+		<!-- SDF documentation: http://sdformat.org/ -->
+		<!-- xacro(XML macro): http://wiki.ros.org/xacro -->
+		<!-- URDF in GAZEBO: http://gazebosim.org/tutorials/?tut=ros_urdf#%3Cgazebo%3Eelementforthetag -->
+		<!-- URDF tutorials:http://wiki.ros.org/urdf/Tutorials -->
+		<!-- Gravity disable: http://answers.gazebosim.org/question/13416/how-to-disable-gravity-only-for-a-specific-model-in-gazebo/ -->
+		<!-- WORLD_TO_BASE fixed joint - TF between base and world -->
+		<!-- NEXT_STEPS NEXT_STEPS NEXT_STEPS -->
+		<!-- BASE_TO_ROPE1 link is ofsetted for -box_param/2 so it could be connected on bottom of the base, while visual properties
+			of link rope_1 are offseted by -body_len/2 so we could connect it on the bottom of  the base and have full link at disposal-->
+		<!-- CREATE BALL LINK - series of revolute joints or infitensimaly small links connected with simple revolute/revolute joints-->
+		<!-- PHYSICS THE ROPE, INERTIA ELEMENTS FOR ROPE AND LOAD SHOULD BE CALCULATED, DONE -->
+		<!-- STANDARD UNITS OF MEASURE AND COORDINATE CONVENTION : http://www.ros.org/reps/rep->13.html -->
+		<!-- XACRO PROPERTIES, LAUNCH FILE AUTOMATICALLY CONVERTS XACRO TO URDF -->
+		<!-- DIFFERENT LOAD, DIFFERENT INERTIA ELEMENT, FUNCTION THAT CREATES LOAD DEPENDENT ON ITS SHAPE-->	
+
+		<link name="world"/>	
+		
+		<link name="base_link">			
+			<visual>
+				<geometry>	
+					<box size="${box_param} ${3*box_param} ${box_param}"/>										
+				</geometry>					
+			</visual>
+
+			<collision>
+				<geometry>
+					<box size="${box_param} ${3*box_param} ${box_param}"/>						
+				</geometry>
+			</collision>
+
+			<inertial>
+			<mass value="${small}"/>
+			<inertia 
+				ixx="${small}" ixy="0.0" ixz="0.0"
+        		iyy="${small}" iyz="0.0"
+        		izz="${small}"/>
+        	<origin xyz="0 0 ${spawn_point}" rpy="0 0 0"/>
+			</inertial>
+
+		</link>	
+
+		<link name="leg1">
+			<visual>
+				<geometry>
+					<box size="${box_param} ${box_param1} ${spawn_point+box_param/2}"/>
+				</geometry>
+					<origin xyz="0 0 ${-spawn_point/2}" rpy="0 0 0"/>
+			</visual>
+
+			<collision>
+				<geometry>
+					<box size="${box_param} ${box_param1} ${spawn_point+box_param/2}"/>						
+				</geometry>
+					<origin xyz="0 0 ${-spawn_point/2}" rpy="0 0 0"/>
+			</collision>
+
+			<inertial>
+			<mass value="${large}"/>
+			<inertia 
+				ixx="${large}" ixy="0.0" ixz="0.0"
+        		iyy="${large}" iyz="0.0"
+        		izz="${large}"/>
+        	<origin xyz="0 ${3*box_param} ${spawn_point/2}" rpy="0 0 0"/>
+			</inertial>
+		</link>	
+
+		<link name="leg2">
+			<visual>
+				<geometry>
+					<box size="${box_param} ${box_param1} ${spawn_point+box_param/2}"/>					
+				</geometry>
+				<origin xyz="0 0 ${-spawn_point/2}" rpy="0 0 0"/>
+			</visual>
+
+			<collision>
+				<geometry>
+					<box size="${box_param} ${box_param1} ${spawn_point+box_param/2}"/>										
+				</geometry>
+				<origin xyz="0 0 ${-spawn_point/2}" rpy="0 0 0"/>	
+			</collision>
+
+			<inertial>
+				<mass value="${large}"/>
+				<inertia 
+					ixx="${large}" ixy="0.0" ixz="0.0"
+        			iyy="${large}" iyz="0.0"
+        			izz="${large}"/>
+        		<origin xyz="0 ${-3*box_param} ${-spawn_point/2}" rpy="0 0 0"/>
+			</inertial>
+			
+		</link>	
+
+		
+
+		<link name="rope_1">
+			<visual>
+				<geometry>	
+					<cylinder radius="${width_1}" length="${body_len}"/>						
+				</geometry>
+				<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</visual>
+			<collision>
+				<geometry>
+					<cylinder radius="${width_1}" length="${body_len}"/>
+				</geometry>
+				<origin xyz="0  0 ${-body_len/2}" rpy="0 0 0"/>
+			</collision>
+				
+			<inertial>
+				<mass value="${mass_rope}"/>
+				<inertia 
+					ixx="${inertia_rope}" ixy="0.0" ixz="0.0"
+        			iyy="${inertia_rope}" iyz="0.0"
+        			izz="${inertia_rope}"/>
+        		<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</inertial>
+
+		</link>
+
+		<link name="rope_2">
+			<visual>
+				<geometry>	
+					<cylinder radius="${width_1}" length="${body_len}"/>						
+				</geometry>
+				<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</visual>
+			<collision>
+				<geometry>
+					<cylinder radius="${width_1}" length="${body_len}"/>
+				</geometry>
+				<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</collision>
+				
+			<inertial>
+				<mass value="${mass_rope}"/>
+				<inertia 
+					ixx="${inertia_rope}" ixy="0.0" ixz="0.0"
+        			iyy="${inertia_rope}" iyz="0.0"
+        			izz="${inertia_rope}"/>
+        		<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</inertial>
+		</link>
+
+		<link name="rope_3">
+			<visual>	
+				<geometry>
+					<cylinder radius="${width_1}" length="${body_len}"/>
+				</geometry>
+				<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</visual>	
+			<collision>
+				<geometry>
+					<cylinder radius="${width_1}" length="${body_len}"/>
+				</geometry>
+				<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</collision>
+
+			<inertial>
+				<mass value="${mass_rope}"/>
+
+				<inertia 
+					ixx="${inertia_rope}" ixy="0.0" ixz="0.0"
+        			iyy="${inertia_rope}" iyz="0.0"
+        			izz="${inertia_rope}"/>
+        		<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</inertial>
+		</link>
+
+		<link name="rope_4">
+			<visual>	
+				<geometry>
+					<cylinder radius="${width_1}" length="${body_len}"/>
+				</geometry>
+				<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</visual>	
+			<collision>
+				<geometry>
+					<cylinder radius="${width_1}" length="${body_len}"/>
+				</geometry>
+				<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</collision>
+
+			<inertial>
+				<mass value="${mass_rope}"/>
+
+				<inertia 
+					ixx="${inertia_rope}" ixy="0.0" ixz="0.0"
+        			iyy="${inertia_rope}" iyz="0.0"
+        			izz="${inertia_rope}"/>
+
+        		<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</inertial>
+		</link>
+
+
+		<link name="rope_5">
+			<visual>	
+				<geometry>
+					<cylinder radius="${width_1}" length="${body_len}"/>
+				</geometry>
+				<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</visual>	
+			<collision>
+				<geometry>
+					<cylinder radius="${width_1}" length="${body_len}"/>
+				</geometry>
+				<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</collision>
+
+			<inertial>
+				<mass value="${mass_rope}"/>
+
+				<inertia 
+					ixx="${inertia_rope}" ixy="0.0" ixz="0.0"
+        			iyy="${inertia_rope}" iyz="0.0"
+        			izz="${inertia_rope}"/>
+        		<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</inertial>
+		</link>
+
+		<link name="rope_6">
+			<visual>	
+				<geometry>
+					<cylinder radius="${width_1}" length="${body_len}"/>
+				</geometry>
+				<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</visual>	
+			<collision>
+				<geometry>
+					<cylinder radius="${width_1}" length="${body_len}"/>
+				</geometry>
+				<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</collision>
+
+			<inertial>
+				<mass value="${mass_rope}"/>
+
+				<inertia 
+					ixx="${inertia_rope}" ixy="0.0" ixz="0.0"
+        			iyy="${inertia_rope}" iyz="0.0"
+        			izz="${inertia_rope}"/>
+        		<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</inertial>
+		</link>
+
+		<link name="rope_7">
+			<visual>	
+				<geometry>
+					<cylinder radius="${width_1}" length="${body_len}"/>
+				</geometry>
+				<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</visual>	
+			<collision>
+				<geometry>
+					<cylinder radius="${width_1}" length="${body_len}"/>
+				</geometry>
+				<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</collision>
+
+			<inertial>
+				<mass value="${mass_rope}"/>
+
+				<inertia 
+					ixx="${inertia_rope}" ixy="0.0" ixz="0.0"
+        			iyy="${inertia_rope}" iyz="0.0"
+        			izz="${inertia_rope}"/>
+        		<origin xyz="0 0 ${-body_len/2}" rpy="0 0 0"/>
+			</inertial>
+		</link>
+
+
+
+		<link name="load">
+			<visual>
+				<geometry>
+					<sphere radius="${radius}"/>
+				</geometry>
+				<origin xyz="0 0 ${-radius}" rpy="0 0 0"/>
+			</visual>
+
+			<collision>
+				<geometry>
+					<sphere radius="${radius}"/>
+				</geometry>
+				<origin xyz="0 0 ${-radius}" rpy="0 0 0"/>
+			</collision>
+
+
+			<inertial>
+				<mass value="${load_mass}"/>
+				<inertia
+					ixx="${(2/5)*load_mass*radius*radius}" ixy="0.0" ixz="0.0"
+					iyy="${(2/5)*load_mass*radius*radius}" iyz="0.0"
+					izz="${(2/5)*load_mass*radius*radius}"/>
+				<origin xyz="0 0 ${-radius}" rpy="0 0 0"/>
+			</inertial>
+
+		</link>
+			
+		<joint name="world_to_base_link" type="fixed">
+				<parent link="world"/>
+				<child link="base_link"/>
+				<origin xyz="0 0 ${spawn_point}"/>
+
+		</joint>
+
+		<joint name="leg1_base_link" type="fixed">
+				<parent link="base_link"/>
+				<child link="leg1"/>
+				<origin xyz="0 ${3*box_param/2+box_param1/2} ${box_param/4}"/>
+		</joint>
+
+		<joint name="leg2_base_link" type="fixed">
+				<parent link="base_link"/>
+				<child link="leg2"/>
+				<origin xyz="0 ${-(3*box_param/2+box_param1/2)} ${box_param/4}"/>
+		</joint>
+
+
+
+		<joint name="baselink_to_rope1Psi" type="revolute">
+			<parent link="base_link"/>
+			<child link="rope_1Psi_link"/>
+			<origin xyz="0 0 ${-box_param/2}"/>
+			<axis xyz="0 0 1"/>			
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/16}" upper="${pi/16}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<link name="rope_1Psi_link">
+			<inertial>
+				<mass value="${mass_link}"/>
+				<inertia
+					ixx="${inertia_link}" ixy="0.0" ixz="0.0"
+					iyy="${inertia_link}" iyz="0.0"
+					izz="${inertia_link}"/>
+			</inertial>
+		</link>
+
+		<joint name="rope1Psi_to_rope1Theta" type="revolute">
+			<parent link="rope_1Psi_link"/>
+			<child link="rope_1Theta_link"/>
+			<axis xyz="0 1 0"/>	
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<link name="rope_1Theta_link">
+			<inertial>
+				<mass value="${mass_link}"/>
+				<inertia
+					ixx="${inertia_link}" ixy="0.0" ixz="0.0"
+					iyy="${inertia_link}" iyz="0.0"
+					izz="${inertia_link}"/>
+			</inertial>
+		</link>
+
+		<joint name="rope1Theta_to_rope1" type="revolute">
+			<parent link="rope_1Theta_link"/>
+			<child link="rope_1"/>
+			<axis xyz="1 0 0"/>			
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+
+		<!--<joint name="base_linktorope1" type="revolute">
+    		<parent link="base_link"/>
+    		<child link="rope_1"/>
+    		<origin xyz="0 0 ${-box_param/2}"/>
+			<axis xyz="0 1 0"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="0.01" velocity="0.01"/>
+		</joint>-->
+
+		
+		<joint name="rope1_to_rope2Psi" type="revolute">
+			<parent link="rope_1"/>
+			<child link="rope_2Psi_link"/>
+			<origin xyz="0 0 ${-body_len}"/>
+			<axis xyz="0 0 1"/>			
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/16}" upper="${pi/16}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<link name="rope_2Psi_link">
+			<inertial>
+				<mass value="${mass_link}"/>
+				<inertia
+					ixx="${inertia_link}" ixy="0.0" ixz="0.0"
+					iyy="${inertia_link}" iyz="0.0"
+					izz="${inertia_link}"/>
+			</inertial>
+		</link>
+
+		<joint name="rope2Psi_to_rope2Theta" type="revolute">
+			<parent link="rope_2Psi_link"/>
+			<child link="rope_2Theta_link"/>
+			<axis xyz="0 1 0"/>	
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<link name="rope_2Theta_link">
+			<inertial>
+				<mass value="${mass_link}"/>
+				<inertia
+					ixx="${inertia_link}" ixy="0.0" ixz="0.0"
+					iyy="${inertia_link}" iyz="0.0"
+					izz="${inertia_link}"/>
+			</inertial>
+		</link>
+
+		<joint name="rope2Theta_to_rope2" type="revolute">
+			<parent link="rope_2Theta_link"/>
+			<child link="rope_2"/>
+			<axis xyz="1 0 0"/>			
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>		
+
+
+
+		<!--<joint name="rope1_to_rope2" type="revolute">
+			<parent link="rope_1"/>
+			<child link="rope_2"/>
+			<origin xyz="0 0 ${-body_len}"/>
+			<axis xyz="0 1 0" />
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="0.01" velocity="0.01"/>
+		</joint>-->
+
+		<joint name="rope2_to_rope3Psi" type="revolute">
+			<parent link="rope_2"/>
+			<child link="rope_3Psi_link"/>
+			<origin xyz="0 0 ${-body_len}"/>
+			<axis xyz="0 0 1"/>			
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/16}" upper="${pi/16}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<link name="rope_3Psi_link">
+			<inertial>
+				<mass value="${mass_link}"/>
+				<inertia
+					ixx="${inertia_link}" ixy="0.0" ixz="0.0"
+					iyy="${inertia_link}" iyz="0.0"
+					izz="${inertia_link}"/>
+			</inertial>
+		</link>
+
+		<joint name="rope3Psi_to_rope3Theta" type="revolute">
+			<parent link="rope_3Psi_link"/>
+			<child link="rope_3Theta_link"/>
+			<axis xyz="0 1 0"/>	
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<link name="rope_3Theta_link">
+			<inertial>
+				<mass value="${mass_link}"/>
+				<inertia
+					ixx="${inertia_link}" ixy="0.0" ixz="0.0"
+					iyy="${inertia_link}" iyz="0.0"
+					izz="${inertia_link}"/>
+			</inertial>
+		</link>
+
+		<joint name="rope3Theta_to_rope3" type="revolute">
+			<parent link="rope_3Theta_link"/>
+			<child link="rope_3"/>
+			<axis xyz="1 0 0"/>			
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>		
+
+		<!--<joint name="rope2_to_rope3" type="revolute">
+			<parent link="rope_2"/>
+			<child link="rope_3"/>
+			<origin xyz="0 0 ${-body_len}"/>
+			<axis xyz="1 0 0"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="0.01" velocity="0.01"/>
+		</joint>-->
+		
+		<!--<joint name="rope3_to_rope4" type="revolute">
+			<parent link="rope_3"/>
+			<child link="rope_4"/>
+			<origin xyz="0 0 ${-body_len}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="0.01" velocity="0.01"/>
+		</joint>-->
+		
+		
+		<!-- for starters ball joint is represented as series of revolute joints -->
+		<!-- doesn't work in GAZEBO, possible problem could be lack of inertial elements for imaginary links-->
+
+		<joint name="rope3_to_rope4Psi" type="revolute">
+			<parent link="rope_3"/>
+			<child link="rope_4Psi_link"/>
+			<origin xyz="0 0 ${-body_len}"/>
+			<axis xyz="0 0 1"/>			
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/16}" upper="${pi/16}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<link name="rope_4Psi_link">
+			<inertial>				
+				<mass value="${mass_link}"/>
+				<inertia
+					ixx="${inertia_link}" ixy="0.0" ixz="0.0"
+					iyy="${inertia_link}" iyz="0.0"
+					izz="${inertia_link}"/>
+			</inertial>
+		</link>
+
+		<joint name="rope4Psi_to_rope4Theta" type="revolute">
+			<parent link="rope_4Psi_link"/>
+			<child link="rope_4Theta_link"/>
+			<axis xyz="0 1 0"/>	
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<link name="rope_4Theta_link">
+			<inertial>
+				<mass value="${mass_link}"/>
+				<inertia
+					ixx="${inertia_link}" ixy="0.0" ixz="0.0"
+					iyy="${inertia_link}" iyz="0.0"
+					izz="${inertia_link}"/>
+			</inertial>
+		</link>
+
+		<joint name="rope4Theta_to_rope4" type="revolute">
+			<parent link="rope_4Theta_link"/>
+			<child link="rope_4"/>
+			<axis xyz="1 0 0"/>			
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<joint name="rope4_to_rope5Psi" type="revolute">
+			<parent link="rope_4"/>
+			<child link="rope_5Psi_link"/>
+			<origin xyz="0 0 ${-body_len}"/>
+			<axis xyz="0 0 1"/>			
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/16}" upper="${pi/16}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<link name="rope_5Psi_link">
+			<inertial>				
+				<mass value="${mass_link}"/>
+				<inertia
+					ixx="${inertia_link}" ixy="0.0" ixz="0.0"
+					iyy="${inertia_link}" iyz="0.0"
+					izz="${inertia_link}"/>
+			</inertial>
+		</link>
+
+		<joint name="rope5Psi_to_rope5Theta" type="revolute">
+			<parent link="rope_5Psi_link"/>
+			<child link="rope_5Theta_link"/>
+			<axis xyz="0 1 0"/>	
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<link name="rope_5Theta_link">
+			<inertial>
+				<mass value="${mass_link}"/>
+				<inertia
+					ixx="${inertia_link}" ixy="0.0" ixz="0.0"
+					iyy="${inertia_link}" iyz="0.0"
+					izz="${inertia_link}"/>
+			</inertial>
+		</link>
+
+		<joint name="rope5Theta_to_rope5" type="revolute">
+			<parent link="rope_5Theta_link"/>
+			<child link="rope_5"/>
+			<axis xyz="1 0 0"/>			
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+
+		<joint name="rope5_to_rope6Psi" type="revolute">
+			<parent link="rope_5"/>
+			<child link="rope_6Psi_link"/>
+			<origin xyz="0 0 ${-body_len}"/>
+			<axis xyz="0 0 1"/>			
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/16}" upper="${pi/16}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<link name="rope_6Psi_link">
+			<inertial>				
+				<mass value="${mass_link}"/>
+				<inertia
+					ixx="${inertia_link}" ixy="0.0" ixz="0.0"
+					iyy="${inertia_link}" iyz="0.0"
+					izz="${inertia_link}"/>
+			</inertial>
+		</link>
+
+		<joint name="rope6Psi_to_rope6Theta" type="revolute">
+			<parent link="rope_6Psi_link"/>
+			<child link="rope_6Theta_link"/>
+			<axis xyz="0 1 0"/>	
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<link name="rope_6Theta_link">
+			<inertial>
+				<mass value="${mass_link}"/>
+				<inertia
+					ixx="${inertia_link}" ixy="0.0" ixz="0.0"
+					iyy="${inertia_link}" iyz="0.0"
+					izz="${inertia_link}"/>
+			</inertial>
+		</link>
+
+		<joint name="rope6Theta_to_rope6" type="revolute">
+			<parent link="rope_6Theta_link"/>
+			<child link="rope_6"/>
+			<axis xyz="1 0 0"/>			
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<joint name="rope6_to_rope7Psi" type="revolute">
+			<parent link="rope_6"/>
+			<child link="rope_7Psi_link"/>
+			<origin xyz="0 0 ${-body_len}"/>
+			<axis xyz="0 0 1"/>			
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/16}" upper="${pi/16}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<link name="rope_7Psi_link">
+			<inertial>				
+				<mass value="${mass_link}"/>
+				<inertia
+					ixx="${inertia_link}" ixy="0.0" ixz="0.0"
+					iyy="${inertia_link}" iyz="0.0"
+					izz="${inertia_link}"/>
+			</inertial>
+		</link>
+
+		<joint name="rope7Psi_to_rope7Theta" type="revolute">
+			<parent link="rope_7Psi_link"/>
+			<child link="rope_7Theta_link"/>
+			<axis xyz="0 1 0"/>	
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<link name="rope_7Theta_link">
+			<inertial>
+				<mass value="${mass_link}"/>
+				<inertia
+					ixx="${inertia_link}" ixy="0.0" ixz="0.0"
+					iyy="${inertia_link}" iyz="0.0"
+					izz="${inertia_link}"/>
+			</inertial>
+		</link>
+
+		<joint name="rope7Theta_to_rope7" type="revolute">
+			<parent link="rope_7Theta_link"/>
+			<child link="rope_7"/>
+			<axis xyz="1 0 0"/>			
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+
+		<!--<joint name="rope7_to_load" type="revolute">
+			<parent link="rope_7"/>
+			<child link="load"/>
+			<origin xyz="0 0 ${-body_len}"/>
+			<axis xyz="0 1 0"/>
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint> -->
+
+		<joint name="rope7_to_rope8Psi" type="revolute">
+			<parent link="rope_7"/>
+			<child link="rope_8Psi_link"/>
+			<origin xyz="0 0 ${-body_len}"/>
+			<axis xyz="0 0 1"/>			
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/16}" upper="${pi/16}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<link name="rope_8Psi_link">
+			<inertial>				
+				<mass value="${mass_link}"/>
+				<inertia
+					ixx="${inertia_link}" ixy="0.0" ixz="0.0"
+					iyy="${inertia_link}" iyz="0.0"
+					izz="${inertia_link}"/>
+			</inertial>
+		</link>
+
+		<joint name="rope8Psi_to_rope8Theta" type="revolute">
+			<parent link="rope_8Psi_link"/>
+			<child link="rope_8Theta_link"/>
+			<axis xyz="0 1 0"/>	
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		<link name="rope_8Theta_link">
+			<inertial>
+				<mass value="${mass_link}"/>
+				<inertia
+					ixx="${inertia_link}" ixy="0.0" ixz="0.0"
+					iyy="${inertia_link}" iyz="0.0"
+					izz="${inertia_link}"/>
+			</inertial>
+		</link>
+
+		<joint name="rope8Theta_to_load" type="revolute">
+			<parent link="rope_8Theta_link"/>
+			<child link="load"/>
+			<axis xyz="1 0 0"/>			
+			<dynamics damping="${damping1}" friction="${friction}"/>
+			<limit lower="${-pi/2}" upper="${pi/2}" effort="${effort_joint}" velocity="${velocity_joint}"/>
+		</joint>
+
+		
+		<gazebo reference="rope_1">
+			<material>Gazebo/Blue</material>			
+		</gazebo>
+
+		<gazebo reference="rope_2">
+			<material>Gazebo/Green</material>
+		</gazebo>
+
+		<gazebo reference="rope_3">
+			<material>Gazebo/Blue</material>
+		</gazebo>
+
+		<gazebo reference="rope_4">
+			<material>Gazebo/Green</material>
+		</gazebo>
+
+		<gazebo reference="rope_5">
+			<material>Gazebo/Blue</material>
+		</gazebo>
+
+		<gazebo reference="rope_6">
+			<material>Gazebo/Green</material>
+		</gazebo>
+
+		<gazebo reference="rope_7">
+			<material>Gazebo/Blue</material>
+		</gazebo>
+
+		<gazebo reference="load">
+			<material>Gazebo/Red</material>
+		</gazebo>
+		<!--
+		<gazebo reference="rope_1">
+			<mu1>0.01</mu1>
+			<mu2>0.01</mu2>
+		</gazebo>
+
+		<gazebo reference="rope_2Psi_link">
+			<mu1>0.01</mu1>
+			<mu2>0.01</mu2>
+		</gazebo>
+
+		<gazebo reference="rope_2Theta_link">
+			<mu1>0.01</mu1>
+			<mu2>0.01</mu2>
+		</gazebo>
+
+		<gazebo reference="rope_3Psi_link">
+			<mu1>0.01</mu1>
+			<mu2>0.01</mu2>
+		</gazebo>
+
+		<gazebo reference="rope_3Theta_link">
+			<mu1>0.01</mu1>
+			<mu2>0.01</mu2>
+		</gazebo>
+
+		<gazebo reference="rope_4Psi_link">
+			<mu1>0.01</mu1>
+			<mu2>0.01</mu2>
+		</gazebo> -->
+
+
+
+		<!--
+		<gazebo reference="rope2Theta_to_rope1">
+			<implicitSpringDamper>0.7</implicitSpringDamper>
+		</gazebo>
+
+		<gazebo reference="rope4Theta_to_rope4">
+			<implicitSpringDamper>0.7</implicitSpringDamper>
+		</gazebo>
+
+		<gazebo reference="rope3_to_rope4Psi">
+			<implicitSpringDamper>0.7</implicitSpringDamper>
+		</gazebo>-->
+
+
+
+
+		
+
+
+
+</robot>
+							
+
